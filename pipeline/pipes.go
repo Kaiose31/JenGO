@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/url"
 
@@ -64,18 +63,21 @@ func (j *JenkinsConfig) CreatePipeline(configPath string) *gojenkins.Job {
 	return job
 }
 
-func (j *JenkinsConfig) GetNodesInfo(configPath string) bool {
-
+func (j *JenkinsConfig) RunPipeline(configPath string) {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	config := processConfig(configPath)
 	jenkins := setupJenkins(ctx, j)
-	nodes, err := jenkins.GetAllNodes(ctx)
+
+	job, err := jenkins.GetJob(ctx, config.JobName, config.Name)
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, node := range nodes {
 
-		// Fetch Node Data
-		node.Poll(ctx)
-		fmt.Println(node.Raw)
+	_, err = job.InvokeSimple(ctx, nil)
+	if err != nil {
+		log.Fatal(err)
 	}
-	return true
+
+	checkJobStatus(ctx, j, job)
+
 }

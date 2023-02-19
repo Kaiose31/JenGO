@@ -32,11 +32,12 @@ func main() {
 	case "create":
 		{
 			job := pipelineManager.CreatePipeline(*ConfigPath)
-			fmt.Println(job.Raw)
+			fmt.Println("Created Job :", job.Raw.Name)
 		}
 	case "run":
 		{
-			// TODO
+			pipelineManager.RunPipeline(*ConfigPath)
+
 		}
 
 	case "info":
