@@ -2,67 +2,80 @@ package pipeline
 
 import (
 	"context"
-	"encoding/json"
-	"io/ioutil"
+	"fmt"
 	"log"
 	"net/url"
-	"path"
-	"time"
 
 	"github.com/bndr/gojenkins"
 )
 
 // TODO! Update with Config Format
 type ConfigFormat struct {
-	Name string `json:"name"`
+	Name    string `json:"name"`
+	JobName string `json:"jobname"`
 }
 
 type JenkinsConfig struct {
-	HostUrl url.URL
-	Token   string
+	HostUrl  url.URL
+	UserName string
+	Password string
 }
 
 var (
 	ctx = context.Background()
 )
 
-func (j *JenkinsConfig) CreatePipeline(configPath string) bool {
+// TODO! Example to Config Driven
+func (j *JenkinsConfig) CreatePipeline(configPath string) *gojenkins.Job {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	configPath = path.Clean(configPath)
+	configString := `<?xml version='1.0' encoding='UTF-8'?>
+				<project>
+				<actions/>
+				<description></description>
+				<keepDependencies>false</keepDependencies>
+				<properties/>
+				<scm class="hudson.scm.NullSCM"/>
+				<canRoam>true</canRoam>
+				<disabled>false</disabled>
+				<blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+				<blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+				<triggers class="vector"/>
+				<concurrentBuild>false</concurrentBuild>
+				<builders/>
+				<publishers/>
+				<buildWrappers/>
+				</project>`
 
-	conf, err := ioutil.ReadFile(configPath)
+	config := processConfig(configPath)
+	jenkins := setupJenkins(ctx, j)
+
+	pFolder, err := jenkins.CreateFolder(ctx, config.Name)
+
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var config ConfigFormat
-
-	if err := json.Unmarshal(conf, &config); err != nil {
-		log.Fatal(err)
-	}
-
-	jenkins := gojenkins.CreateJenkins(nil, j.HostUrl.String(), j.Token)
-	_, err = jenkins.Info(ctx)
+	job, err := jenkins.CreateJobInFolder(ctx, configString, config.JobName, pFolder.GetName())
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	//TODO! Create The Pipeline
-	node, err := jenkins.CreateNode(ctx, config.Name, 1, "Description", "/var/lib/jenkins", "jdk8 docker", map[string]string{"method": "JNLPLauncher"})
+	return job
+}
+
+func (j *JenkinsConfig) GetNodesInfo(configPath string) bool {
+
+	jenkins := setupJenkins(ctx, j)
+	nodes, err := jenkins.GetAllNodes(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
+	for _, node := range nodes {
 
-	for true {
-		time.Sleep(1 * time.Second)
-		res, err := node.IsOnline(ctx)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if res {
-			return res
-		}
+		// Fetch Node Data
+		node.Poll(ctx)
+		fmt.Println(node.Raw)
 	}
-	return false
+	return true
 }

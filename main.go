@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/url"
 
@@ -10,9 +11,10 @@ import (
 
 func main() {
 	Host := flag.String("host", "localhost:8080", "URL for jenkins")
-	Token := flag.String("token", "", "API Token for jenkins")
 	Action := flag.String("action", "create", "Pipeline Management actions \n1. create\n2. run")
-	Config := flag.String("config-path", "", "Config json path for Pipeline Creation")
+	Username := flag.String("username", "username", "username")
+	Password := flag.String("password", "password", "password")
+	ConfigPath := flag.String("config-path", "", "Config json path for Pipeline Creation")
 
 	flag.Parse()
 	host, err := url.Parse(*Host)
@@ -21,15 +23,16 @@ func main() {
 	}
 
 	pipelineManager := pipeline.JenkinsConfig{
-		HostUrl: *host,
-		Token:   *Token,
+		HostUrl:  *host,
+		UserName: *Username,
+		Password: *Password,
 	}
 
 	switch *Action {
 	case "create":
 		{
-			pipelineManager.CreatePipeline(*Config)
-
+			job := pipelineManager.CreatePipeline(*ConfigPath)
+			fmt.Println(job.Raw)
 		}
 	case "run":
 		{
@@ -41,7 +44,7 @@ func main() {
 			// TODO
 		}
 	default:
-		log.Fatal("Invalid Action for Pipeline:", *Config)
+		log.Fatal("Invalid Action for Pipeline:", *ConfigPath)
 
 	}
 
